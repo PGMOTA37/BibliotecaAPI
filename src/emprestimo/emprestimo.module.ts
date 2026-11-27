@@ -6,9 +6,10 @@ import { EmprestimoService } from './emprestimo.service';
 import { EmprestimoController } from './emprestimo.controller';
 import { EMPRESTIMO_REPOSITORY } from './repository/emprestimo.repository';
 import { EmprestimoRepositoryTypeOrm } from './repository/emprestimo.repository.typeorm';
+import { Leitor } from '../leitor/leitor.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Emprestimo, Livro])],
+  imports: [TypeOrmModule.forFeature([Emprestimo, Livro, Leitor])],
   controllers: [EmprestimoController],
   providers: [
     EmprestimoService,

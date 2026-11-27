@@ -1,4 +1,4 @@
-import { ConflictException, Inject, Injectable, NotAcceptableException, NotFoundException } from "@nestjs/common";
+import { ConflictException, Inject, Injectable, NotFoundException } from "@nestjs/common";
 import { Emprestimo, StatusEmprestimo } from "./emprestimo.entity";
 import { CriarEmprestimoDto } from "./dto/criar-emprestimo.dto";
 import { EMPRESTIMO_REPOSITORY } from "./repository/emprestimo.repository";
@@ -18,6 +18,16 @@ export class EmprestimoService {
             throw new NotFoundException('Livro não encontrado');
         }
 
+        const leitor = await this.emprestimoRepository.buscarLeitorPorId(dto.leitor_id);
+
+        if(!livro) {
+            throw new NotFoundException('Leitor não encontrado!');
+        }
+
+        if(!leitor?.ativo) {
+            throw new ConflictException('leitor inativo não pode pegar livros emprestados...')
+        }
+
         if(!livro.disponivel) {
             throw new ConflictException('Livro indisponível para empréstimo');
         }
@@ -27,19 +37,25 @@ export class EmprestimoService {
 
         const emprestimo = new Emprestimo();
         emprestimo.livro = livro;
-        emprestimo.leitor = dto.leitor;
+        emprestimo.leitor = leitor;
         emprestimo.status = StatusEmprestimo.ATIVO;
         emprestimo.data_devolucao = null;
 
         return this.emprestimoRepository.criar(emprestimo);
     }
 
-    async devolver(id: number): Promise<Emprestimo> {
+    async buscarPorId(id: number): Promise<Emprestimo> {
         const emprestimo = await this.emprestimoRepository.buscarPorId(id);
 
         if(!emprestimo) {
-            throw new NotFoundException('Empréstimo não encontrado');
+            throw new NotFoundException('Empréstimo não encontrado...')
         }
+
+        return emprestimo;
+    }
+
+    async devolver(id: number): Promise<Emprestimo> {
+        const emprestimo = await this.buscarPorId(id);
 
         if(emprestimo.status === StatusEmprestimo.DEVOLVIDO) {
             throw new ConflictException('Empréstimo já devolvido');

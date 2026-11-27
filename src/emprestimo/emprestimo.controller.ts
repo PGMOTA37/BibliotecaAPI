@@ -6,6 +6,16 @@ import { CriarEmprestimoDto } from "./dto/criar-emprestimo.dto";
 export class EmprestimoController {
     constructor(private readonly emprestimoService: EmprestimoService) {}
 
+    @Get()
+    listar() {
+        return this.emprestimoService.listar();
+    }
+
+    @Get(':id')
+    buscarPorId(@Param('id', ParseIntPipe) id: number) {
+        return this.emprestimoService.buscarPorId(id);
+    }
+
     @Post()
     criar(@Body() dto: CriarEmprestimoDto) {
         return this.emprestimoService.criar(dto);
@@ -14,10 +24,5 @@ export class EmprestimoController {
     @Put(':id/devolucao')
     devolver(@Param('id', ParseIntPipe) id: number) {
         return this.emprestimoService.devolver(id);
-    }
-
-    @Get()
-    listar() {
-        return this.emprestimoService.listar();
-    }
+    }  
 }

@@ -1,5 +1,6 @@
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn } from "typeorm";
 import { Livro } from "../livro/livro.entity";
+import { Leitor } from "../leitor/leitor.entity";
 
 export enum StatusEmprestimo {
     ATIVO = 'ATIVO',
@@ -15,8 +16,9 @@ export class Emprestimo {
     @JoinColumn({ name: 'livro_id' })
     livro: Livro;
 
-    @Column()
-    leitor: string
+    @ManyToOne(() => Leitor)
+    @JoinColumn({name: 'leitor_id'})
+    leitor: Leitor;
 
     @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP'})
     data_emprestimo: Date;

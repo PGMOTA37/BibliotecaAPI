@@ -1,384 +1,115 @@
-# Módulo Livro - 17/11/2027 (17:02)
+# Início do trabalho - 26/11/2026 (23:32)
 ## Gustavo Vinícius Coinete Silva
-Foi feito o módulo Livro, seguindo o passo a passo e explicações abaixo:
 
-## 1. Criar o projeto NestJS
+O projeto foi adaptado com base no repositório `Biblioteca`. O trabalho foi feito em etapas, rodando `npx tsc --noEmit` ao final de cada uma para conferir se o projeto continuava compilando.
 
-```bash
-# Instala a CLI do NestJS globalmente (permite rodar "nest ..." em qualquer pasta)
-npm i -g @nestjs/cli
+### Situação antes das mudanças
 
-# Cria o projeto "biblioteca"
-nest new biblioteca
-# Responda as perguntas no terminal
-# > npm
-# > Y
-# > CJS (CommonJS)
-# > n
-
-cd biblioteca
-```
-
-**Por que `CommonJS`?** É o formato de módulos que funciona sem configuração extra no Node. Se escolher ESM, alguns imports precisarão de ajustes.
-
----
-
-## 2. Instalar dependências de banco e validação
-
-```bash
-# TypeORM (ORM) + driver oficial do PostgreSQL
-npm install @nestjs/typeorm typeorm pg
-
-# Validação de DTOs (payloads inválidos são rejeitados antes de chegar ao Service)
-npm install class-validator class-transformer
-```
-
-- `@nestjs/typeorm` → integração oficial entre Nest e TypeORM.
-- `typeorm` → ORM que mapeia classes TypeScript para tabelas SQL.
-- `pg` → driver de conexão com o PostgreSQL.
-- `class-validator` → decorators como `@IsString`, `@IsNotEmpty` usados nos DTOs.
-- `class-transformer` → converte o JSON da requisição em instância da classe DTO (necessário para a validação funcionar).
-
----
-
-## 3. Criar o banco no pgAdmin
-
-Abra o pgAdmin, conecte ao servidor PostgreSQL local e crie um banco chamado **`biblioteca`**. As credenciais usadas na conexão do Nest (host, porta, usuário, senha) devem corresponder a esse servidor.
-
----
-
-## 4. Configurar o `app.module.ts` (conexão com o banco)
-
-Substitua todo o conteúdo de `src/app.module.ts` por:
-
-```ts
-import { Module } from "@nestjs/common";
-import { TypeOrmModule } from "@nestjs/typeorm";
-
-@Module({
-  imports: [
-    TypeOrmModule.forRoot({
-      type: 'postgres',
-      host: 'localhost',
-      port: 5432,
-      username: 'postgres',
-      password: 'postgres',
-      database: 'biblioteca',
-      autoLoadEntities: true,
-      synchronize: true,
-    }),
-  ],
-})
-export class AppModule {}
-```
-
-**O que cada opção faz:**
-
-| Opção | Função |
+| Item | Situação |
 |---|---|
-| `type: 'postgres'` | Diz ao TypeORM qual driver usar |
-| `host` / `port` / `username` / `password` | Credenciais do PostgreSQL |
-| `database: 'biblioteca'` | Banco que será usado |
-| `autoLoadEntities: true` | Carrega automaticamente entidades registradas via `forFeature` |
-| `synchronize: true` | Cria/atualiza tabelas automaticamente conforme as entidades (**apenas em desenvolvimento!**) |
+| Módulos | Apenas 2 (Livro e Empréstimo). Faltava o Leitor |
+| Livro | 2 rotas (`POST` e `GET /livros`) |
+| Empréstimo | 3 rotas. O leitor era apenas uma `string` |
+| Seed | Não existia |
+| Configuração do banco | Escrita direto no `app.module.ts` |
 
 ---
 
-## 5. Ajustar o `main.ts`
+## Etapa 1 – Módulo Leitor
 
-Remova qualquer referência a `Observe` (se houver) e adicione o `ValidationPipe` global:
+Criado o módulo completo em `src/leitor/`, seguindo o mesmo padrão dos outros (Controller → Service → Repository, com token `Symbol`).
 
-```ts
-import { NestFactory } from '@nestjs/core';
-import { AppModule } from './app.module';
-import { ValidationPipe } from '@nestjs/common';
-
-async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
-  app.useGlobalPipes(new ValidationPipe({ whitelist: true }));
-  await app.listen(process.env.PORT ?? 3000);
-}
-void bootstrap();
-```
-
-`whitelist: true` → o Nest **remove automaticamente** qualquer campo do JSON que não esteja declarado no DTO. Se o cliente enviar `{"titulo": "...", "hack": "x"}`, o `hack` é descartado antes de chegar ao Service. Isso protege contra injeção de campos extras.
-
----
-
-## 6. Testar a conexão
-
-```bash
-npm run start:dev
-```
-
-Se aparecer no terminal algo como `TypeOrmModule dependencies initialized` e **sem erros**, a conexão está funcionando. Pode dar Ctrl + C para parar a conexão, isto é apenas um teste.
-
----
-
-## 7. Criar a entidade `Livro`
-
-Crie a pasta `src/livro` e, dentro dela, o arquivo `livro.ts`:
-
-```ts
-import { Entity, PrimaryGeneratedColumn, Column } from 'typeorm';
-
-@Entity('livros')
-export class Livro {
-  @PrimaryGeneratedColumn()
-  id: number;
-
-  @Column()
-  titulo: string;
-
-  @Column()
-  autor: string;
-
-  @Column()
-  isbn: string;
-
-  @Column({ default: true })
-  disponivel: boolean;
-}
-```
-
-**Anatomia:**
-
-- `@Entity('livros')` → a classe representa a tabela `livros` no banco.
-- `@PrimaryGeneratedColumn()` → `id` é auto-incrementado.
-- `@Column()` → cada campo vira uma coluna.
-- `default: true` → o campo `disponivel` começa como `true` se não for informado.
-
----
-
-## 8. Criar o DTO de criação
-
-Crie `src/livro/dto/criar-livro.dto.ts`:
-
-```ts
-import { IsString, IsNotEmpty } from 'class-validator';
-
-export class CriarLivroDto {
-  @IsString()
-  @IsNotEmpty()
-  titulo: string;
-
-  @IsString()
-  @IsNotEmpty()
-  autor: string;
-
-  @IsString()
-  @IsNotEmpty()
-  isbn: string;
-}
-```
-
-**Por que um DTO e não a própria entidade?**
-
-- `@IsString()` → rejeita números, booleanos, objetos.
-- `@IsNotEmpty()` → rejeita strings vazias (`""`).
-- `id` e `disponivel` **não estão aqui** → o cliente não pode escolher esses valores; são gerados pelo banco.
-- Separar entidade (banco) e DTO (entrada) evita que campos internos vazem para a API.
-
----
-
-## 9. Criar o Service
-
-`src/livro/livro.service.ts`:
-
-```ts
-import { Injectable } from "@nestjs/common";
-import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
-import { Livro } from "./livro";
-import { CriarLivroDto } from "./dto/criar-livro.dto";
-
-@Injectable()
-export class LivroService {
-  constructor(
-    @InjectRepository(Livro)
-    private readonly livroRepository: Repository<Livro>,
-  ) {}
-
-  async criar(dto: CriarLivroDto): Promise<Livro> {
-    const livro = this.livroRepository.create(dto);
-    return this.livroRepository.save(livro);
-  }
-
-  async listar(): Promise<Livro[]> {
-    return this.livroRepository.find();
-  }
-}
-```
-
-**O que acontece aqui:**
-
-- `@Injectable()` → marca a classe como "provider" que o Nest pode injetar em quem pedir.
-- `@InjectRepository(Livro)` → pede ao TypeORM o repositório da entidade `Livro`. Só funciona se o módulo registrar `TypeOrmModule.forFeature([Livro])` (ver Passo 11).
-- `create(dto)` → monta um objeto `Livro` **em memória** (sem salvar).
-- `save(livro)` → faz o `INSERT` no banco e devolve o objeto com `id` e `disponivel` preenchidos.
-- `find()` → faz `SELECT * FROM livros`.
-
----
-
-## 10. Criar o Controller
-
-`src/livro/livro.controller.ts`:
-
-```ts
-import { Controller, Get, Post, Body } from '@nestjs/common';
-import { LivroService } from './livro';
-import { CriarLivroDto } from './dto/criar-livro.dto';
-
-@Controller('livros')
-export class LivroController {
-  constructor(private readonly livroService: LivroService) {}
-
-  @Post()
-  criar(@Body() dto: CriarLivroDto) {
-    return this.livroService.criar(dto);
-  }
-
-  @Get()
-  listar() {
-    return this.livroService.listar();
-  }
-}
-```
-
-**O que cada parte faz:**
-
-| Item | Função |
+| Arquivo | Função |
 |---|---|
-| `@Controller('livros')` | Prefixa todas as rotas desta classe com `/livros` |
-| `@Post()` | `POST /livros` |
-| `@Get()` | `GET /livros` |
-| `@Body()` | Extrai o corpo JSON e valida contra o `CriarLivroDto` |
-| `constructor(...)` | O Nest injeta o `LivroService` automaticamente |
+| `leitor.entity.ts` | Tabela `leitores`: `id`, `nome`, `email` (único), `cpf` (único), `ativo` (default `true`) |
+| `dto/criar-leitor.dto.ts` | Valida nome, e-mail (`@IsEmail`) e CPF (11 dígitos) |
+| `dto/atualizar-leitor.dto.ts` | Mesmos campos, todos opcionais |
+| `repository/leitor.repository.ts` | Interface + token `LEITOR_REPOSITORY` |
+| `repository/leitor.repository.typeorm.ts` | Implementação com TypeORM (só acesso a dados) |
+| `leitor.service.ts` | Regras de negócio |
+| `leitor.controller.ts` | Rotas HTTP |
+| `leitor.module.ts` | Liga o token à implementação e registra a entidade |
+
+Rotas: `GET /leitores`, `GET /leitores/:id`, `POST /leitores`, `PUT /leitores/:id` e `DELETE /leitores/:id`.
+
+**Decisões:**
+* O `DELETE` **inativa** o leitor (`ativo = false`) em vez de apagar. Assim o histórico de empréstimos continua válido e não quebra a chave estrangeira.
+* A regra 5 (e-mail ou CPF duplicado, retornando 409) fica no service, no método privado `validarDuplicidade`. O parâmetro `idIgnorado` permite que o próprio leitor reenvie seus dados em um `PUT` sem dar conflito consigo mesmo.
+* `email` e `cpf` também têm `unique: true` na entidade, como segunda barreira no banco.
 
 ---
 
-## 11. Criar o Module
+## Etapa 2 – Completar o módulo Livro
 
-`src/livro/livro.module.ts`:
+| Arquivo | O que mudou |
+|---|---|
+| `dto/atualizar-livro.dto.ts` | Novo. Campos opcionais: `titulo`, `autor`, `isbn` |
+| `repository/livro.repository.ts` | Interface ganhou `buscarPorId`, `atualizar`, `remover` e `possuiEmprestimos` |
+| `repository/livro.repository.typeorm.ts` | Implementa os novos métodos e injeta também o repositório de `Emprestimo` |
+| `livro.service.ts` | Novos `buscarPorId`, `atualizar` e `remover` |
+| `livro.controller.ts` | Novas rotas `GET /:id`, `PUT /:id` e `DELETE /:id` |
+| `livro.module.ts` | `forFeature([Livro, Emprestimo])` |
 
-```ts
-import { Module } from '@nestjs/common';
-import { TypeOrmModule } from '@nestjs/typeorm';
-import { Livro } from './livro';
-import { LivroService } from './livro.service';
-import { LivroController } from './livro.controller';
-
-@Module({
-  imports: [TypeOrmModule.forFeature([Livro])],
-  controllers: [LivroController],
-  providers: [LivroService],
-})
-export class LivroModule {}
-```
-
-**Por que esse módulo é obrigatório:**
-
-- `TypeOrmModule.forFeature([Livro])` → registra o repositório de `Livro` **no escopo deste módulo**. Sem isso, o `@InjectRepository(Livro)` no Service lança erro na inicialização.
-- `controllers: [LivroController]` → informa ao Nest que este Controller pertence ao módulo.
-- `providers: [LivroService]` → registra o Service para injeção.
+**Decisões:**
+* O campo `disponivel` **não** está no DTO de atualização. Quem controla essa flag são os empréstimos e devoluções, e o cliente não deve alterá-la pelo `PUT`.
+* O `DELETE` de livro que já tem empréstimo retorna **409**. Sem essa verificação, o banco recusaria por causa da chave estrangeira e a API devolveria um erro 500.
+* O `DELETE` responde `204` (sem conteúdo), com `@HttpCode(204)`.
 
 ---
 
-## 12. Registrar o `LivroModule` no `AppModule`
+## Etapa 3 – Empréstimo ligado ao Leitor
 
-Atualize `src/app.module.ts` para incluir `LivroModule` na lista de `imports`:
+| Arquivo | O que mudou |
+|---|---|
+| `emprestimo.entity.ts` | `leitor: string` virou `@ManyToOne(() => Leitor)` com coluna `leitor_id`. As duas relações ficaram `nullable: false` |
+| `dto/criar-emprestimo.dto.ts` | Agora recebe `livro_id` e `leitor_id`, ambos inteiros |
+| `repository/emprestimo.repository.ts` | Novo método `buscarLeitorPorId` |
+| `repository/emprestimo.repository.typeorm.ts` | Injeta o repositório de `Leitor`; `listar` e `buscarPorId` trazem livro e leitor |
+| `emprestimo.service.ts` | Valida o leitor, novo `buscarPorId` público |
+| `emprestimo.controller.ts` | Nova rota `GET /emprestimos/:id` |
+| `emprestimo.module.ts` | `forFeature([Emprestimo, Livro, Leitor])` |
 
-```ts
-import { Module } from "@nestjs/common";
-import { TypeOrmModule } from "@nestjs/typeorm";
-import { LivroModule } from "./livro/livro.module";
-import { Livro } from "./livro/livro";
-
-@Module({
-  imports: [
-    TypeOrmModule.forRoot({
-      type: 'postgres',
-      host: 'localhost',
-      port: 5432,
-      username: 'postgres',
-      password: 'postgres',
-      database: 'biblioteca',
-      entities: [Livro],
-      autoLoadEntities: true,
-      synchronize: true,
-    }),
-    LivroModule,
-  ],
-})
-export class AppModule {}
-```
-
-Sem essa linha, as rotas `/livros` não existiriam na aplicação, mesmo com o Controller criado.
+**Decisões:**
+* No `criar`, **todas as validações acontecem antes de qualquer alteração**: livro existe (404), leitor existe (404), leitor ativo (409) e livro disponível (409). Só depois o livro é marcado como indisponível. Assim uma validação que falha nunca deixa o livro "preso".
+* A regra "leitor inativo não pode pegar livro emprestado" é nova. Não está no README do `Biblioteca_POO`, mas combina com a inativação feita no `DELETE /leitores/:id`.
+* O `devolver` passou a reaproveitar o `buscarPorId`, deixando o "empréstimo não encontrado" em um lugar só.
+* Foram removidos imports sem uso: `promises` de `dns`, `isNotEmpty` e `isString`, `NotAcceptableException`.
+* Como a tabela `emprestimos` mudou de estrutura (coluna `leitor` virou `leitor_id` obrigatória), foi necessário zerar o banco de desenvolvimento com `docker compose down -v`.
 
 ---
 
-## 13. Testes com `curl`
+## Etapa 4 – Configuração do banco e seed
 
-Com `npm run start:dev` rodando:
+### `src/config/typeorm.config.ts`
+A configuração do TypeORM saiu do `app.module.ts` e foi para uma função `criarTypeOrmConfig()`, usada tanto pela aplicação quanto pelo seed (que roda fora do Nest e precisa da própria conexão).
 
-**Criar um livro (sucesso):**
-```bash
-curl -X POST http://localhost:3000/livros \
-  -H "Content-Type: application/json" \
-  -d '{"titulo":"Dom Casmurro","autor":"Machado de Assis","isbn":"123"}'
-```
+**Por que uma função e não uma constante?** Uma constante exportada leria o `process.env` no instante em que o arquivo fosse importado, antes de o `ConfigModule` carregar o `.env`. A senha chegaria `undefined`. Com a função, a leitura só acontece quando ela é chamada.
 
-Resposta:
-```json
-{"id":1,"titulo":"Dom Casmurro","autor":"Machado de Assis","isbn":"123","disponivel":true}
-```
+Também foi trocado `autoLoadEntities: true` por `entities: [Livro, Leitor, Emprestimo]`, porque o seed precisa conhecer as entidades.
 
-**Listar livros:**
-```bash
-curl http://localhost:3000/livros
-```
+### `src/seed.ts`
+Preenche os 3 módulos com dados de exemplo:
 
-Resposta:
-```json
-[{"id":1,"titulo":"Dom Casmurro","autor":"Machado de Assis","isbn":"123","disponivel":true}]
-```
+| Tabela | Registros |
+|---|---|
+| `livros` | 6 (2 deles indisponíveis, por causa de empréstimos ativos) |
+| `leitores` | 4 (1 inativo, útil para demonstrar a regra do 409) |
+| `emprestimos` | 4 (2 `ATIVO` e 2 `DEVOLVIDO`, com datas coerentes) |
 
-**Payload inválido (validação funcionando):**
-```bash
-curl -X POST http://localhost:3000/livros \
-  -H "Content-Type: application/json" \
-  -d '{"titulo":""}'
-```
+* Antes de inserir, o seed roda `TRUNCATE TABLE emprestimos, livros, leitores RESTART IDENTITY CASCADE`. Isso permite rodá-lo várias vezes e sempre cair no mesmo estado, com ids começando em 1. **Ele apaga tudo o que estiver nessas tabelas.**
+* O `.env` é carregado com `process.loadEnvFile()`, recurso nativo do Node, sem precisar instalar o `dotenv`.
+* ISBNs, CPFs e e-mails são fictícios.
 
-Resposta:
-```json
-{
-  "message": [
-    "titulo should not be empty",
-    "autor should not be empty",
-    "autor must be a string",
-    "isbn should not be empty",
-    "isbn must be a string"
-  ],
-  "error": "Bad Request",
-  "statusCode": 400
-}
-```
+Comando: `npx ts-node src/seed.ts`
 
-Note que **o Service nunca é chamado** quando a validação falha: o `ValidationPipe` intercepta e devolve `400 Bad Request` antes.
+Saída esperada: `Seed concluído: 6 livros, 4 leitores e 4 empréstimos.`
 
 ---
 
-## Resumo do fluxo completo
+## Estado final
 
-```
-Cliente → POST /livros
-   ↓
-LivroController (@Body valida com ValidationPipe + whitelist)
-   ↓
-LivroService.criar(dto)
-   ↓
-Repository.create + save → INSERT no PostgreSQL
-   ↓
-Retorna JSON com id e disponivel
-```
+| Módulo | GET | Outros métodos | Total |
+|---|---|---|---|
+| Livro | `/livros`, `/livros/:id` | `POST /livros`, `PUT /livros/:id`, `DELETE /livros/:id` | 5 |
+| Leitor | `/leitores`, `/leitores/:id` | `POST /leitores`, `PUT /leitores/:id`, `DELETE /leitores/:id` | 5 |
+| Empréstimo | `/emprestimos`, `/emprestimos/:id` | `POST /emprestimos`, `PUT /emprestimos/:id/devolucao` | 4 |

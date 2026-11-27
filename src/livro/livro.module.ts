@@ -5,9 +5,10 @@ import { LivroService } from './livro.service';
 import { LivroController } from './livro.controller';
 import { LIVRO_REPOSITORY } from './repository/livro.repository';
 import { LivroRepositoryTypeOrm } from './repository/livro.repository.typeorm';
+import { Emprestimo } from '../emprestimo/emprestimo.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Livro])],
+  imports: [TypeOrmModule.forFeature([Livro, Emprestimo])],
   controllers: [LivroController],
   providers: [
     LivroService,
