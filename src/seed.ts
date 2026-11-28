@@ -44,7 +44,7 @@ async function seed() {
             { nome: 'Diego Alves', email: 'diego.alves@example.com', cpf: '44444444444', ativo: false },
         ]);
 
-        await emprestimoRepo.save([
+        const emprestimos = await emprestimoRepo.save([
             {
           livro: livros[2],
           leitor: leitores[0],
@@ -76,7 +76,7 @@ async function seed() {
         ]);
 
         console.log(
-            `Seed conluído: ${livros.length} livros, ${leitores.length} leitores e 4 empréstimos.`,
+            `Seed concluído: ${livros.length} livros, ${leitores.length} leitores e ${emprestimos.length} empréstimos.`,
         );
     } finally {
         await dataSource.destroy();

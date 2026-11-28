@@ -5,9 +5,10 @@ import { LeitorService } from "./leitor.service";
 import { LeitorController } from "./leitor.controller";
 import { LEITOR_REPOSITORY } from "./repository/leitor.repository";
 import { LeitorRepositoryTypeOrm } from "./repository/leitor.repository.typeorm";
+import { Emprestimo } from "../emprestimo/emprestimo.entity";
 
 @Module({
-    imports: [TypeOrmModule.forFeature([Leitor])],
+    imports: [TypeOrmModule.forFeature([Leitor, Emprestimo])],
     controllers: [LeitorController],
     providers: [
         LeitorService,

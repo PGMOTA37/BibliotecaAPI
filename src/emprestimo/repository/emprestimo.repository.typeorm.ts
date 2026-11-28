@@ -32,7 +32,7 @@ export class EmprestimoRepositoryTypeOrm implements EmprestimoRepository {
     buscarPorId(id: number): Promise<Emprestimo | null> {
         return this.emprestimoRepo.findOne({
             where: {id},
-            relations: { livro: true }
+            relations: { livro: true, leitor: true }
         });
     }
 
@@ -41,7 +41,7 @@ export class EmprestimoRepositoryTypeOrm implements EmprestimoRepository {
     }
 
     listar(): Promise<Emprestimo[]> {
-        return this.emprestimoRepo.find({relations: {livro: true}});
+        return this.emprestimoRepo.find({relations: {livro: true, leitor: true}});
     }
 
     atualizarLivro(livro: Livro): Promise<Livro> {

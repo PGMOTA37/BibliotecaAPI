@@ -20,12 +20,12 @@ export class EmprestimoService {
 
         const leitor = await this.emprestimoRepository.buscarLeitorPorId(dto.leitor_id);
 
-        if(!livro) {
+        if(!leitor) {
             throw new NotFoundException('Leitor não encontrado!');
         }
 
-        if(!leitor?.ativo) {
-            throw new ConflictException('leitor inativo não pode pegar livros emprestados...')
+        if(!leitor.ativo) {
+            throw new ConflictException('leitor inativo não pode pegar livros emprestados...');
         }
 
         if(!livro.disponivel) {

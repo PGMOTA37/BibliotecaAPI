@@ -10,24 +10,24 @@ export class LeitorService {
     constructor(
         @Inject(LEITOR_REPOSITORY)
         private readonly leitorRepository: LeitorRepository
-    ) {}
+    ) { }
 
     private async validarDuplicidade(
         email?: string,
         cpf?: string,
         idIgnorado?: number,
     ): Promise<void> {
-        if(email !== undefined) {
+        if (email !== undefined) {
             const existente = await this.leitorRepository.buscarPorEmail(email)
-            if(existente && existente.id !== idIgnorado) {
+            if (existente && existente.id !== idIgnorado) {
                 throw new ConflictException('E-mail já cadastrado');
             }
         }
 
-        if(cpf !== undefined) {
+        if (cpf !== undefined) {
             const existente = await this.leitorRepository.buscarPorCpf(cpf);
             if (existente && existente.id !== idIgnorado) {
-                throw new ConflictException('E-mail já cadastrado');
+                throw new ConflictException('CPF já cadastrado');
             }
         }
     }
@@ -49,7 +49,7 @@ export class LeitorService {
     async buscarPorId(id: number): Promise<Leitor> {
         const leitor = await this.leitorRepository.buscarPorId(id);
 
-        if(!leitor) {
+        if (!leitor) {
             throw new NotFoundException('Leitor não encontrado!');
         }
 
@@ -61,15 +61,19 @@ export class LeitorService {
 
         await this.validarDuplicidade(dto.email, dto.cpf, id);
 
-        if(dto.nome !== undefined) leitor.nome = dto.nome;
-        if(dto.email !== undefined) leitor.email = dto.email;
-        if(dto.cpf !== undefined) leitor.cpf = dto.cpf;
+        if (dto.nome !== undefined) leitor.nome = dto.nome;
+        if (dto.email !== undefined) leitor.email = dto.email;
+        if (dto.cpf !== undefined) leitor.cpf = dto.cpf;
 
         return this.leitorRepository.atualizar(leitor);
     }
 
     async inativar(id: number): Promise<Leitor> {
         const leitor = await this.buscarPorId(id);
+
+        if (await this.leitorRepository.possuiEmprestimoAtivo(id)) {
+            throw new ConflictException('Leitor possui empréstimo ativo e não pode ser inativado!');
+        }
 
         leitor.ativo = false;
         return this.leitorRepository.atualizar(leitor);
